@@ -3,7 +3,7 @@ package openflow15
 import (
 	"encoding/binary"
 
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 
 	"antrea.io/libOpenflow/common"
 )
@@ -115,10 +115,10 @@ func (f *FlowMod) MarshalBinary() (data []byte, err error) {
 	for _, instr := range f.Instructions {
 		bytes, err = instr.MarshalBinary()
 		data = append(data, bytes...)
-		log.Debugf("flowmod instr: %v", bytes)
+		klog.V(4).Infof("flowmod instr: %v", bytes)
 	}
 
-	log.Debugf("Flowmod(%d): %v", len(data), data)
+	klog.V(4).Infof("Flowmod(%d): %v", len(data), data)
 	return
 }
 
@@ -157,12 +157,17 @@ func (f *FlowMod) UnmarshalBinary(data []byte) error {
 
 	err = f.Match.UnmarshalBinary(data[n:])
 	if err != nil {
+		klog.V(4).Infof("Failed to unmarshal FlowMod's Match: err = %v data = %v", err, data[n:])
 		return err
 	}
 	n += int(f.Match.Len())
 
 	for n < int(f.Header.Length) {
-		instr := DecodeInstr(data[n:])
+		instr, err := DecodeInstr(data[n:])
+		if err != nil {
+			klog.V(4).Infof("Failed to decode FlowMod's instructions: err = %v data = %v", err, data[n:])
+			return err
+		}
 		f.Instructions = append(f.Instructions, instr)
 		n += int(instr.Len())
 	}
@@ -292,12 +297,14 @@ func (f *FlowRemoved) UnmarshalBinary(data []byte) error {
 
 	err = f.Match.UnmarshalBinary(data[n:])
 	if err != nil {
+		klog.V(4).Infof("Failed to unmarshal FlowRemoved's Match: err = %v data = %v", err, data[n:])
 		return err
 	}
 	n += int(f.Match.Len())
 
 	err = f.Stats.UnmarshalBinary(data[n:])
 	if err != nil {
+		klog.V(4).Infof("Failed to unmarshal FlowRemoved's Stats: err = %v data = %v", err, data[n:])
 		return err
 	}
 	n += int(f.Stats.Len())
