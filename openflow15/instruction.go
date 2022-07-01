@@ -48,7 +48,7 @@ func (a *InstrHeader) MarshalBinary() (data []byte, err error) {
 }
 
 func (a *InstrHeader) UnmarshalBinary(data []byte) error {
-	if len(data) != 4 {
+	if len(data) < 4 {
 		return errors.New("Wrong size to unmarshal an InstrHeader message.")
 	}
 	a.Type = binary.BigEndian.Uint16(data[:2])
@@ -164,6 +164,9 @@ func (instr *InstrWriteMetadata) MarshalBinary() (data []byte, err error) {
 }
 
 func (instr *InstrWriteMetadata) UnmarshalBinary(data []byte) error {
+	if len(data) < int(instr.Len()) {
+		return errors.New("data too short to unmarshal InstrWriteMetadata")
+	}
 	err := instr.InstrHeader.UnmarshalBinary(data[:4])
 	if err != nil {
 		return err
@@ -230,6 +233,10 @@ func (instr *InstrActions) UnmarshalBinary(data []byte) error {
 	}
 
 	n := 8
+	if len(data) < int(instr.InstrHeader.Length) || len(data) < int(n) {
+		return errors.New("data too short to unmarshal InstrActions")
+	}
+
 	for n < int(instr.Length) {
 		act, err := DecodeAction(data[n:])
 		if err != nil {
